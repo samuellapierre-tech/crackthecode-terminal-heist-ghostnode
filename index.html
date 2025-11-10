@@ -1,0 +1,952 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Terminal Heist — Ghost Node · CrackTheCode</title>
+  <style>
+    :root{
+      --bg:#010306;
+      --accent:#66f7a1;
+      --accent-soft:#2bdc95;
+      --accent-alt:#00e0ff;
+      --danger:#ff4f7b;
+      --muted:#7b8b92;
+      --border:#151b24;
+      --font:"Fira Code", ui-monospace, Menlo, Consolas, monospace;
+    }
+    *{box-sizing:border-box;margin:0;padding:0;}
+    html,body{height:100%;}
+    body{
+      background:radial-gradient(circle at top,#071117,#01030a 70%) fixed;
+      color:#e5f5eb;
+      font-family:var(--font);
+      display:flex;
+      justify-content:center;
+      align-items:flex-start;
+      padding:16px;
+    }
+    .frame{
+      width:100%;
+      max-width:1320px;
+      min-height:520px;
+      max-height:800px;
+      background:
+        radial-gradient(circle at top,rgba(102,247,161,0.04),transparent),
+        #020308;
+      border-radius:16px;
+      border:1px solid var(--border);
+      box-shadow:0 26px 90px rgba(0,0,0,0.98), 0 0 22px rgba(0,255,140,0.05) inset;
+      padding:12px;
+      display:grid;
+      grid-template-columns: 1.9fr 1.4fr;
+      gap:10px;
+      position:relative;
+      overflow:hidden;
+    }
+    @media(max-width:900px){
+      .frame{
+        grid-template-columns:1fr;
+        max-height:none;
+      }
+    }
+    .header{
+      grid-column:1 / -1;
+      display:flex;
+      justify-content:space-between;
+      align-items:flex-start;
+      gap:10px;
+      margin-bottom:4px;
+      font-size:10px;
+      color:var(--muted);
+    }
+    .title-block{display:flex;flex-direction:column;gap:2px;}
+    .title-main{
+      font-size:14px;
+      color:var(--accent);
+      letter-spacing:0.16em;
+      text-transform:uppercase;
+    }
+    .title-sub{font-size:10px;color:var(--muted);}
+    .tag{
+      display:inline-block;
+      padding:1px 6px;
+      border-radius:999px;
+      border:1px solid rgba(102,247,161,0.5);
+      font-size:8px;
+      color:var(--accent-soft);
+      margin-right:4px;
+    }
+    .status-head{text-align:right;}
+    .status-head div{margin-bottom:2px;}
+    .leds span{
+      display:inline-block;
+      width:7px;height:7px;
+      border-radius:50%;
+      margin-left:4px;
+      background:#111;
+      box-shadow:0 0 6px rgba(0,0,0,0.9) inset;
+    }
+    .leds span.on{
+      background:var(--accent-soft);
+      box-shadow:0 0 8px rgba(102,247,161,0.95);
+    }
+
+    /* Terminal */
+    .terminal-wrap{
+      background:linear-gradient(to bottom,#020611,#010308);
+      border-radius:10px;
+      padding:8px;
+      border:1px solid rgba(102,247,161,0.2);
+      box-shadow:inset 0 0 18px rgba(0,0,0,0.96);
+      display:flex;
+      flex-direction:column;
+      gap:4px;
+      overflow:hidden;
+    }
+    .term-label{
+      font-size:9px;
+      color:var(--muted);
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap:8px;
+    }
+    .term-label span.right{
+      color:var(--accent-alt);
+      font-size:8px;
+    }
+    .term-log{
+      flex:1;
+      overflow-y:auto;
+      padding-right:4px;
+      font-size:10px;
+      line-height:1.5;
+    }
+    .term-log::-webkit-scrollbar{width:6px;}
+    .term-log::-webkit-scrollbar-thumb{
+      background:rgba(102,247,161,0.2);
+      border-radius:6px;
+    }
+    .line{white-space:pre-wrap;word-break:break-word;}
+    .sys{color:var(--accent-alt);}
+    .lyra{color:var(--accent);}
+    .err{color:var(--danger);}
+    .hint{color:var(--accent-soft);}
+    .user{color:var(--accent-soft);}
+    .ghost{color:#bbf7ff;}
+
+    .term-input-row{
+      border-top:1px solid rgba(102,247,161,0.18);
+      padding-top:3px;
+      display:flex;
+      align-items:center;
+      gap:4px;
+      font-size:10px;
+      color:var(--accent-soft);
+    }
+    .prompt{flex-shrink:0;}
+    #cmd{
+      flex:1;
+      background:transparent;
+      border:none;
+      outline:none;
+      color:var(--accent);
+      font:inherit;
+      padding:1px 0 2px;
+    }
+    #cmd::placeholder{
+      color:rgba(102,247,161,0.28);
+    }
+
+    /* Right map & objectives */
+    .side{
+      display:flex;
+      flex-direction:column;
+      gap:6px;
+      font-size:9px;
+    }
+    .map{
+      flex:1.2;
+      background:
+        radial-gradient(circle at top,rgba(0,224,255,0.06),transparent),
+        #020308;
+      border-radius:10px;
+      padding:6px;
+      border:1px solid rgba(0,224,255,0.18);
+      box-shadow:inset 0 0 16px rgba(0,0,0,0.97);
+      position:relative;
+      overflow:hidden;
+    }
+    .map-title{
+      font-size:9px;
+      color:var(--accent-alt);
+      text-transform:uppercase;
+      letter-spacing:0.14em;
+      margin-bottom:3px;
+    }
+    .map-svg{
+      width:100%;
+      height:100%;
+    }
+    .node-label{
+      fill:var(--accent-alt);
+      font-size:7px;
+    }
+    .node-box{
+      fill:rgba(3,9,16,0.98);
+      stroke:rgba(0,224,255,0.38);
+      stroke-width:0.8;
+      rx:4; ry:4;
+    }
+    .packet{
+      fill:var(--accent-soft);
+      opacity:0.9;
+    }
+    .map-hint{
+      position:absolute;
+      bottom:4px;left:6px;right:6px;
+      font-size:8px;
+      color:var(--muted);
+      background:linear-gradient(to top,rgba(0,0,0,0.9),transparent);
+      padding-top:4px;
+      pointer-events:none;
+    }
+
+    .mission{
+      flex:0.9;
+      background:#020308;
+      border-radius:10px;
+      padding:6px;
+      border:1px solid rgba(102,247,161,0.18);
+      box-shadow:inset 0 0 14px rgba(0,0,0,0.96);
+      display:flex;
+      flex-direction:column;
+      gap:4px;
+    }
+    .mission-title{
+      font-size:9px;
+      color:var(--accent-soft);
+      text-transform:uppercase;
+      letter-spacing:0.1em;
+    }
+    .mission-text{
+      font-size:8px;
+      color:var(--muted);
+    }
+    .obj-list{
+      list-style:none;
+      padding-left:0;
+      margin:2px 0 0;
+      display:flex;
+      flex-direction:column;
+      gap:2px;
+    }
+    .obj{
+      display:flex;
+      gap:4px;
+      align-items:flex-start;
+    }
+    .obj-bullet{
+      width:7px;height:7px;
+      border-radius:50%;
+      border:1px solid rgba(102,247,161,0.5);
+      margin-top:2px;
+      flex-shrink:0;
+    }
+    .obj.done .obj-bullet{
+      background:var(--accent-soft);
+      box-shadow:0 0 6px rgba(102,247,161,0.9);
+    }
+    .obj-text{
+      font-size:8px;
+      color:var(--muted);
+    }
+    .obj.done .obj-text{
+      color:var(--accent-soft);
+    }
+    .mission-footer{
+      margin-top:4px;
+      font-size:8px;
+      color:var(--muted);
+    }
+    .pill{
+      display:inline-block;
+      padding:1px 5px;
+      border-radius:999px;
+      border:1px solid rgba(102,247,161,0.4);
+      font-size:7px;
+      color:var(--accent-soft);
+      margin-right:3px;
+    }
+
+    .status{
+      display:flex;
+      gap:4px;
+      margin-top:2px;
+      font-size:8px;
+    }
+    .status-box{
+      flex:1;
+      padding:3px 4px;
+      border-radius:6px;
+      background:rgba(0,0,0,0.9);
+      border:1px solid rgba(102,247,161,0.16);
+      display:flex;
+      flex-direction:column;
+      gap:1px;
+    }
+    .status-label{color:var(--muted);}
+    .status-value{color:var(--accent-soft);font-size:8px;}
+  </style>
+</head>
+<body>
+<div class="frame" id="ghost-root">
+  <div class="header">
+    <div class="title-block">
+      <div class="title-main">TERMINAL HEIST — GHOST NODE</div>
+      <div class="title-sub">
+        Suite directe du Niveau 1. Découvre et neutralise le noeud fantôme <span style="color:var(--accent-alt)">ghost.akiranet</span> dans un réseau 100% fictif.
+      </div>
+      <div>
+        <span class="tag">NIVEAU 2</span>
+        <span class="tag">UNIVERS CRACKTHECODE</span>
+        <span class="tag">FORMATION LINUX & RÉSEAU (SANDBOX)</span>
+      </div>
+    </div>
+    <div class="status-head">
+      <div>Session : <span style="color:var(--accent-soft)">sam@ghost-lab</span></div>
+      <div>Lyra.exe : <span style="color:var(--accent-alt)">connectée</span></div>
+      <div>Noeuds fictifs : ghost.akiranet · dmz.akiranet</div>
+      <div class="leds"><span class="on"></span><span class="on"></span><span class="on"></span></div>
+    </div>
+  </div>
+
+  <!-- Terminal -->
+  <div class="terminal-wrap">
+    <div class="term-label">
+      <div>AKIRA_TERMINAL // Ghost Node Training Shell</div>
+      <div class="right">Tape <span class="hint">help</span> ou <span class="hint">mission</span> · commandes simulées uniquement</div>
+    </div>
+    <div id="log" class="term-log">
+      <div class="line sys">[SYS] Chargement du profil : Sam — progression Terminal Heist validée.</div>
+      <div class="line sys">[SYS] Ouverture d'un tunnel vers le Ghost Lab (fictif).</div>
+      <div class="line lyra">[LYRA] Bien. Niveau 2 : on passe au vrai faux réseau.</div>
+      <div class="line lyra">[LYRA] Objectif : identifier, scanner et contenir <span class="hint">ghost.akiranet</span> en utilisant des commandes inspirées du monde réel.</div>
+      <div class="line lyra">[LYRA] Tout ici est simulé. Rien ne touche Internet. C'est notre dojo.</div>
+    </div>
+    <div class="term-input-row">
+      <span class="prompt" id="prompt">sam@ghost-lab:/$</span>
+      <!-- pas d'autofocus pour éviter le scroll auto dans Webador -->
+      <input id="cmd" type="text"
+             placeholder="help · mission · ls · cd · scan ghost.akiranet · connect · ssh · decode ..."
+             autocomplete="off" spellcheck="false">
+    </div>
+  </div>
+
+  <!-- Right side -->
+  <div class="side">
+    <div class="map">
+      <div class="map-title">TOPOLOGIE FICTIVE — GHOST GRID</div>
+      <svg class="map-svg" viewBox="0 0 260 170" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <linearGradient id="link" x1="0" x2="1">
+            <stop offset="0%" stop-color="#00e0ff" stop-opacity="0.0"/>
+            <stop offset="30%" stop-color="#00e0ff" stop-opacity="0.8"/>
+            <stop offset="70%" stop-color="#66f7a1" stop-opacity="0.9"/>
+            <stop offset="100%" stop-color="#66f7a1" stop-opacity="0.0"/>
+          </linearGradient>
+        </defs>
+        <!-- links -->
+        <g stroke="url(#link)" stroke-width="1.5" stroke-linecap="round">
+          <path d="M40 85 C90 40 170 40 220 60" />
+          <path d="M40 85 C90 120 170 120 220 100" />
+          <path d="M130 30 C150 50 180 70 200 40" opacity="0.35"/>
+        </g>
+        <!-- nodes -->
+        <g>
+          <rect x="24" y="72" width="40" height="24" class="node-box"/>
+          <text x="28" y="86" class="node-label">EDGE</text>
+        </g>
+        <g>
+          <rect x="110" y="18" width="56" height="22" class="node-box"/>
+          <text x="114" y="32" class="node-label">SCAN HUB</text>
+        </g>
+        <g id="node-ghost">
+          <rect x="204" y="50" width="44" height="22" class="node-box" stroke="#66f7a1" stroke-width="1.1"/>
+          <text x="206" y="64" class="node-label">GHOST</text>
+        </g>
+        <g id="node-dmz">
+          <rect x="204" y="94" width="44" height="22" class="node-box"/>
+          <text x="206" y="108" class="node-label">DMZ</text>
+        </g>
+        <!-- packets group -->
+        <g id="packets"></g>
+      </svg>
+      <div class="map-hint">
+        Les paquets verts représentent ton scan pédagogique.
+        Si tu floodes hors périmètre, la "détection" fictive monte.
+        Commandes utiles : <span class="pill">scan ghost.akiranet</span> <span class="pill">nmap dmz.akiranet</span>
+      </div>
+    </div>
+
+    <div class="mission">
+      <div class="mission-title">MISSION — GHOST NODE OPS</div>
+      <div class="mission-text">
+        Tu es dans un environnement-école connecté au récit de CrackTheCode.
+        Tu dois travailler comme un vrai analyste, mais sur un réseau inventé.
+      </div>
+      <ul id="objList" class="obj-list"></ul>
+
+      <div class="status">
+        <div class="status-box">
+          <div class="status-label">Niveau</div>
+          <div class="status-value" id="stLevel">2 / 2 (demo)</div>
+        </div>
+        <div class="status-box">
+          <div class="status-label">Comp Linux/Réseau</div>
+          <div class="status-value" id="stSkill">Scan & pivot (simulé)</div>
+        </div>
+        <div class="status-box">
+          <div class="status-label">Trace (fictive)</div>
+          <div class="status-value" id="stTrace">0%</div>
+        </div>
+        <div class="status-box">
+          <div class="status-label">Fragments Kali</div>
+          <div class="status-value" id="stFrag">1+</div>
+        </div>
+      </div>
+
+      <div class="mission-footer">
+        Rappels :
+        <span class="pill">help</span>
+        <span class="pill">mission</span>
+        <span class="pill">hint</span>
+        <span class="pill">status</span><br>
+        <span class="pill">scan</span> / <span class="pill">nmap</span> / <span class="pill">connect</span> / <span class="pill">ssh</span> /
+        <span class="pill">decode</span> sont entièrement simulés.
+        Rien ne sort de ce sandbox.
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  // --- Objectives for this big level ---
+  const OBJECTIVES = [
+    {
+      id:"help",
+      text:'Consulter la liste des commandes avec "help".',
+      done:false,
+      match:ctx=>ctx.cmd==="help"
+    },
+    {
+      id:"ls-root",
+      text:'Explorer le système fictif avec "ls" à la racine.',
+      done:false,
+      match:ctx=>ctx.cmd==="ls" && ctx.path==="/"
+    },
+    {
+      id:"scan-ghost",
+      text:'Scanner le noeud "ghost.akiranet" avec "scan ghost.akiranet".',
+      done:false,
+      match:ctx=>ctx.cmd==="scan" && ctx.arg==="ghost.akiranet"
+    },
+    {
+      id:"connect-ghost",
+      text:'Établir un lien simulé avec "connect ghost.akiranet".',
+      done:false,
+      match:ctx=>ctx.cmd==="connect" && ctx.arg==="ghost.akiranet"
+    },
+    {
+      id:"ssh-ghost",
+      text:'Simuler une connexion "ssh sam@ghost.akiranet".',
+      done:false,
+      match:ctx=>ctx.cmd==="ssh" && ctx.arg==="sam@ghost.akiranet"
+    },
+    {
+      id:"cat-frag",
+      text:'Lire le fichier "ghost_fragment.asc" avec "cat ghost_fragment.asc".',
+      done:false,
+      match:ctx=>ctx.cmd==="cat" && ctx.arg==="ghost_fragment.asc"
+    },
+    {
+      id:"decode-frag",
+      text:'Analyser le fragment avec "decode ghost_fragment.asc".',
+      done:false,
+      match:ctx=>ctx.cmd==="decode" && ctx.arg==="ghost_fragment.asc"
+    }
+  ];
+
+  const FS = {
+    "/": {
+      "home": "[dir]",
+      "lab": "[dir]",
+      "logs": "[dir]"
+    },
+    "/home": {
+      "sam": "[dir]"
+    },
+    "/home/sam": {
+      "memo.txt":
+`Tu es dans le Ghost Lab.
+Ici, on s'entraîne pour le vrai récit.
+
+Commandes utiles:
+- ls, cd, cat
+- scan ghost.akiranet
+- connect ghost.akiranet
+- ssh sam@ghost.akiranet
+- decode ghost_fragment.asc (une fois récupéré)
+
+Tout est FICTIF.`,
+    },
+    "/lab": {
+      "ghost_hints.txt":
+`ghost.akiranet répond à un scan ciblé.
+Ne flood pas. Lis les résultats. Utilise ensuite connect / ssh.`,
+    },
+    "/logs": {
+      "training.log":
+`[GHOST LAB] Historique:
+Tous les étudiants qui rush sans lire les indices finissent avec un taux de "détection" à 100%.`
+    },
+    "/ghost": {
+      // rempli dynamiquement après connect/ssh
+    }
+  };
+
+  const logEl = document.getElementById('log');
+  const cmdEl = document.getElementById('cmd');
+  const promptEl = document.getElementById('prompt');
+  const objList = document.getElementById('objList');
+  const stTrace = document.getElementById('stTrace');
+  const stFrag = document.getElementById('stFrag');
+  const root = document.getElementById('ghost-root');
+
+  let path = "/";
+  let trace = 0;
+  let fragments = 1; // vient du niveau 1
+  let ghostLinked = false;
+  let ghostSSH = false;
+  let fragDropped = false;
+
+  function print(msg, cls){
+    const div = document.createElement('div');
+    div.className = 'line ' + (cls||'');
+    div.textContent = msg;
+    logEl.appendChild(div);
+    logEl.scrollTop = logEl.scrollHeight;
+  }
+  const pSys = m => print(m,'sys');
+  const pLyra = m => print(m,'lyra');
+  const pErr = m => print(m,'err');
+  const pUser = m => print("sam@ghost-lab:$ "+m,'user');
+  const pGhost = m => print(m,'ghost');
+
+  function setPrompt(){
+    promptEl.textContent = "sam@ghost-lab:"+path+"$";
+  }
+
+  function ensureObjList(){
+    objList.innerHTML = "";
+    OBJECTIVES.forEach(o=>{
+      const li = document.createElement('li');
+      li.className = "obj" + (o.done ? " done" : "");
+      li.innerHTML = '<div class="obj-bullet"></div><div class="obj-text">'+o.text+'</div>';
+      objList.appendChild(li);
+    });
+  }
+
+  function updateObjectives(ctx){
+    OBJECTIVES.forEach(o=>{
+      if(!o.done && o.match && o.match(ctx)){
+        o.done = true;
+        pLyra("[LYRA] Objectif validé : "+o.text);
+      }
+    });
+    ensureObjList();
+    if(OBJECTIVES.every(o=>o.done)){
+      onAllComplete();
+    }
+  }
+
+  function onAllComplete(){
+    if(fragments < 2){
+      fragments = 2;
+      stFrag.textContent = fragments;
+    }
+    pLyra("[LYRA] Tu as géré le Ghost Node comme un pro.");
+    pLyra("[LYRA] Ce niveau est directement lié au prochain chapitre de CrackTheCode.");
+    pGhost("[KALI] « Je reconnais ta signature. Continue d'apprendre, Sam. »");
+  }
+
+  function updateTrace(delta){
+    trace = Math.max(0, Math.min(100, trace + delta));
+    stTrace.textContent = trace+"%";
+    if(trace >= 100){
+      pErr("[SYS] Bruit maximal. Dans un vrai SOC tu serais cramé. Ici on reset la simulation Ghost Node.");
+      softReset();
+    }
+  }
+
+  function softReset(){
+    path = "/";
+    ghostLinked = false;
+    ghostSSH = false;
+    fragDropped = false;
+    trace = 0;
+    stTrace.textContent = "0%";
+    setPrompt();
+    pSys("[SYS] Reset soft : même niveau, signal propre. Reprends calmement.");
+  }
+
+  function normPath(arg){
+    if(!arg || arg === ".") return path;
+    if(arg === "~") return "/home/sam";
+    if(arg.startsWith("/")) return cleanPath(arg);
+    if(path === "/") return cleanPath("/"+arg);
+    return cleanPath(path+"/"+arg);
+  }
+
+  function cleanPath(p){
+    const parts = p.split("/").filter(Boolean);
+    const stack = [];
+    for(const part of parts){
+      if(part === ".") continue;
+      if(part === "..") stack.pop();
+      else stack.push(part);
+    }
+    return "/"+stack.join("/");
+  }
+
+  function dirExists(p){
+    return !!FS[p] && typeof FS[p] === "object";
+  }
+
+  function lsDir(p){
+    const d = FS[p];
+    if(!d) return null;
+    return Object.keys(d);
+  }
+
+  function readFile(p){
+    const i = p.lastIndexOf("/");
+    const dir = i <= 0 ? "/" : p.slice(0,i);
+    const name = p.slice(i+1);
+    const d = FS[dir];
+    if(!d) return null;
+    return d[name] || null;
+  }
+
+  // --- Commands ---
+  function cmd_help(){
+    print(
+"Commandes disponibles (simulation Ghost Lab):\n"+
+"  help        : cette aide\n"+
+"  mission     : rappel des objectifs\n"+
+"  ls [path]   : lister les dossiers fictifs\n"+
+"  cd <path>   : changer de dossier\n"+
+"  cat <file>  : lire un fichier\n"+
+"  scan <host> : scan pédagogique (ghost.akiranet)\n"+
+"  nmap <host> : visualiser les ports simulés\n"+
+"  connect <h> : établir un lien fictif\n"+
+"  ssh u@h     : connexion simulée (sam@ghost.akiranet)\n"+
+"  decode <f>  : décoder/analyser un fragment\n"+
+"  hint        : indice ciblé de Lyra\n"+
+"  status      : état du niveau\n"+
+"  clear       : nettoyer l'écran\n"+
+"  reset       : reset soft du niveau",
+    "sys");
+  }
+
+  function cmd_mission(){
+    ensureObjList();
+    pSys("[SYS] Objectifs mis à jour dans le panneau Mission.");
+  }
+
+  function cmd_ls(args){
+    const target = args[0] ? normPath(args[0]) : path;
+    const list = lsDir(target);
+    if(!list){
+      pErr("ls: impossible d'accéder à \""+(args[0]||target)+"\"");
+      updateTrace(1);
+      return;
+    }
+    print(list.join("  "),"sys");
+  }
+
+  function cmd_cd(args){
+    if(args.length === 0){
+      path = "/home/sam";
+      setPrompt();
+      return;
+    }
+    const dest = normPath(args[0]);
+    if(!dirExists(dest)){
+      pErr("cd: "+args[0]+": dossier inexistant dans ce sandbox");
+      updateTrace(1);
+      return;
+    }
+    path = dest;
+    setPrompt();
+  }
+
+  function cmd_cat(args){
+    if(args.length === 0){
+      pErr("cat: spécifie un fichier");
+      return;
+    }
+    const full = normPath(args[0]);
+    const content = readFile(full);
+    if(!content){
+      pErr("cat: "+args[0]+": introuvable ici");
+      updateTrace(1);
+      return;
+    }
+    print(content,"sys");
+  }
+
+  function cmd_scan(args){
+    if(args.length === 0){
+      pErr("scan: cible manquante. ex: scan ghost.akiranet");
+      return;
+    }
+    const host = args[0];
+    if(host === "ghost.akiranet"){
+      pSys("[SCAN] ghost.akiranet — port 2222/tcp (ghost-ssh-sim) ouvert.");
+      pSys("[SCAN] Signature instable mais contrôlée par Lyra. Suit la piste : connect → ssh → cat → decode.");
+    }else if(host === "dmz.akiranet"){
+      pSys("[SCAN] dmz.akiranet — ports 22/tcp et 443/tcp simulés. Utilise nmap dmz.akiranet.");
+    }else{
+      pErr("[SCAN] "+host+" hors périmètre de formation. Reste sur ghost.akiranet.");
+      updateTrace(3);
+    }
+  }
+
+  function cmd_nmap(args){
+    if(args.length === 0){
+      pErr("nmap: cible manquante. ex: nmap dmz.akiranet");
+      return;
+    }
+    const host = args[0];
+    if(host === "dmz.akiranet"){
+      print(
+"Starting Nmap (simulé)\n"+
+"PORT   STATE SERVICE\n"+
+"22/tcp open  ssh-sim\n"+
+"443/tcp open  https-sim\n"+
+"\n"+
+"Hint: Dans un vrai contexte, tu corrèles ça avec les logs. Ici, c'est juste pour t'habituer à lire.",
+"sys");
+    }else if(host === "ghost.akiranet"){
+      print(
+"[NMAP] ghost.akiranet (simulation)\n"+
+"2222/tcp open  ghost-ssh-sim\n"+
+"Note: ce n'est pas une vraie machine. Utilise-le comme exercice.",
+"sys");
+    }else{
+      pErr("Nmap bloqué sur "+host+" dans ce dojo. Reste sur ghost/dmz.");
+      updateTrace(2);
+    }
+  }
+
+  function cmd_connect(args){
+    if(args.length === 0){
+      pErr("connect: besoin d'un hôte, ex: connect ghost.akiranet");
+      return;
+    }
+    if(args[0] === "ghost.akiranet"){
+      ghostLinked = true;
+      pSys("[CONNECT] Tunnel pédagogique vers ghost.akiranet établi.");
+      pLyra("[LYRA] Bien. Maintenant, tente un ssh sam@ghost.akiranet.");
+    }else{
+      pErr("connect: "+args[0]+" non routé dans ce simulateur.");
+      updateTrace(2);
+    }
+  }
+
+  function cmd_ssh(args){
+    if(args.length === 0){
+      pErr("ssh: syntaxe: ssh sam@ghost.akiranet");
+      return;
+    }
+    if(args[0] === "sam@ghost.akiranet"){
+      if(!ghostLinked){
+        pLyra("[LYRA] Techniquement tu devrais établir le lien avant (connect ghost.akiranet), mais j'accepte.");
+      }
+      ghostSSH = true;
+      pSys("[SSH-SIM] Connexion virtuelle à ghost.akiranet...");
+      if(!fragDropped){
+        FS["/ghost"]["ghost_fragment.asc"] =
+`-----BEGIN GHOST FRAGMENT-----
+VG91dCBjZSBxdWUgdHUgdm9pcyB2b2lzIGljaSBuZXN0IHBhcyB1biBjeWJlcmNyaW1pbmVsLgpDZXN0
+IHVuIGV4ZXJjaWNlIGRhbnMgbCdhbGxhbmNlIGRlcyBTeXN0w6htZXMuCkRlcml2ZSBsZXMgcHJpbmNpcGVzIGF2YW50IGxlIGNoYW9zIHLDqWVscy4=
+Hint: base64 -> texte. Ici on garde ça conceptuel.
+-----END GHOST FRAGMENT-----`;
+        fragDropped = true;
+      }
+      pSys("[SSH-SIM] Fichier 'ghost_fragment.asc' disponible dans /ghost.");
+      pLyra("[LYRA] Va le chercher proprement.");
+    }else{
+      pErr("ssh: "+args[0]+": accès fictif non prévu.");
+      updateTrace(2);
+    }
+  }
+
+  function cmd_decode(args){
+    if(args.length === 0){
+      pErr("decode: besoin d'un fichier, ex: decode ghost_fragment.asc");
+      return;
+    }
+    if(args[0] === "ghost_fragment.asc"){
+      if(!fragDropped){
+        pErr("decode: ghost_fragment.asc introuvable. As-tu fait ssh sam@ghost.akiranet ?");
+        return;
+      }
+      pSys("[DECODE] Analyse pédagogique du fragment...");
+      pLyra("[LYRA] Réflexe réel: tu identifies l'encodage (ici base64), tu testes localement, tu documentes.");
+      pGhost("[KALI] « Tu apprends sans nuire. C'est ce qui nous différencie d'eux. »");
+      if(fragments < 2){
+        fragments = 2;
+        stFrag.textContent = fragments;
+      }
+    }else{
+      pSys("[DECODE] Rien à décoder d'intéressant dans "+args[0]+".");
+    }
+  }
+
+  function cmd_hint(){
+    const remaining = OBJECTIVES.filter(o=>!o.done);
+    if(remaining.length === 0){
+      pLyra("[LYRA] Tous les objectifs sont verts. Tu peux rejouer ou passer au chapitre suivant dans le livre.");
+      return;
+    }
+    const o = remaining[0];
+    pLyra("[LYRA] Focus maintenant : "+o.text);
+  }
+
+  function cmd_status(){
+    pSys(
+      "[STATUS] path="+path+
+      " | trace="+trace+"%"+
+      " | ghostLink="+(ghostLinked?"OK":"OFF")+
+      " | ghostSSH="+(ghostSSH?"OK":"OFF")+
+      " | fragments="+fragments
+    );
+  }
+
+  function cmd_clear(){
+    logEl.innerHTML = "";
+  }
+
+  // --- Handle commands ---
+  function handle(raw){
+    const line = raw.trim();
+    if(!line){
+      print("", "line");
+      return;
+    }
+    pUser(line);
+
+    const parts = line.split(/\s+/);
+    const cmd = (parts[0] || "").toLowerCase();
+    const args = parts.slice(1);
+    const ctx = { cmd, arg: args.join(" "), path };
+
+    switch(cmd){
+      case "help": cmd_help(); break;
+      case "mission": cmd_mission(); break;
+      case "ls": cmd_ls(args); break;
+      case "cd": cmd_cd(args); break;
+      case "cat": cmd_cat(args); break;
+      case "scan": cmd_scan(args); break;
+      case "nmap": cmd_nmap(args); break;
+      case "connect": cmd_connect(args); break;
+      case "ssh": cmd_ssh(args); break;
+      case "decode": cmd_decode(args); break;
+      case "hint": cmd_hint(); break;
+      case "status": cmd_status(); break;
+      case "clear": cmd_clear(); break;
+      case "reset": softReset(); break;
+      default:
+        pErr(cmd+": commande inconnue dans ce simulateur. Tape 'help'.");
+        updateTrace(1);
+    }
+
+    updateObjectives(ctx);
+  }
+
+  // --- Packets animation on the map ---
+  (function packetsLoop(){
+    const svgNS = "http://www.w3.org/2000/svg";
+    const packetsG = document.getElementById("packets");
+    if(!packetsG) return;
+
+    function spawn(){
+      // simple line from left to ghost/dmz
+      const toGhost = Math.random() < 0.6;
+      const start = {x:40, y:85};
+      const end = toGhost ? {x:220, y:60} : {x:220, y:100};
+      const c1 = {x:120, y: toGhost?50:120};
+      const c2 = {x:170, y: toGhost?40:120};
+
+      const dot = document.createElementNS(svgNS,"circle");
+      dot.setAttribute("r","2");
+      dot.setAttribute("class","packet");
+      packetsG.appendChild(dot);
+
+      let t = 0;
+      const speed = 0.008 + Math.random()*0.004;
+      function step(){
+        t += speed;
+        if(t>=1){
+          packetsG.removeChild(dot);
+          return;
+        }
+        const x = cubic(start.x,c1.x,c2.x,end.x,t);
+        const y = cubic(start.y,c1.y,c2.y,end.y,t);
+        dot.setAttribute("cx",x);
+        dot.setAttribute("cy",y);
+        dot.setAttribute("opacity", 0.3 + 0.7*(1-Math.abs(0.5-t)));
+        requestAnimationFrame(step);
+      }
+      requestAnimationFrame(step);
+    }
+
+    function cubic(p0,p1,p2,p3,t){
+      const mt = 1-t;
+      return mt*mt*mt*p0 + 3*mt*mt*t*p1 + 3*mt*t*t*p2 + t*t*t*p3;
+    }
+
+    setInterval(()=>{ if(Math.random()<0.9) spawn(); }, 260);
+  })();
+
+  // --- Input & focus (sans auto scroll global) ---
+  ensureObjList();
+  setPrompt();
+  pLyra("[LYRA] Commence soft : help, mission, ls, puis attaque ghost.akiranet sans bourriner.");
+
+  // focus seulement quand le joueur clique dans le cadre du jeu
+  root.addEventListener("click", e=>{
+    if(e.target !== cmdEl){
+      setTimeout(()=>cmdEl.focus(), 10);
+    }
+  });
+
+  cmdEl.addEventListener("keydown", e=>{
+    if(e.key === "Enter"){
+      const v = cmdEl.value;
+      cmdEl.value = "";
+      handle(v);
+    }else if(e.key === "c" && e.ctrlKey){
+      print("^C","err");
+      cmdEl.value = "";
+    }
+  });
+
+})();
+</script>
+</body>
+</html>
